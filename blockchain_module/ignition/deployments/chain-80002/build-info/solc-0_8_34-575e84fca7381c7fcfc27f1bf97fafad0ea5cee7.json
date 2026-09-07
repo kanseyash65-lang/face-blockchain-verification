@@ -1,0 +1,49 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_34-575e84fca7381c7fcfc27f1bf97fafad0ea5cee7",
+  "solcVersion": "0.8.34",
+  "solcLongVersion": "0.8.34+commit.80d5c536",
+  "compilerType": "solc",
+  "toolVersions": {
+    "hardhat": "3.15.0"
+  },
+  "userSourceNameMap": {
+    "contracts/HashRegistry.sol": "project/contracts/HashRegistry.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "osaka",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode.linkReferences",
+            "evm.bytecode.object",
+            "evm.bytecode.opcodes",
+            "evm.bytecode.sourceMap",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.opcodes",
+            "evm.deployedBytecode.sourceMap",
+            "evm.methodIdentifiers"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/HashRegistry.sol": {
+        "content": "// SPDX-License-Identifier: MIT\r\npragma solidity ^0.8.28;\r\n\r\ncontract HashRegistry {\r\n    struct Record {\r\n        string dataHash;\r\n        uint256 timestamp;\r\n        address submitter;\r\n    }\r\n\r\n    Record[] public records;\r\n\r\n    event RecordStored(uint256 indexed recordId, string dataHash, uint256 timestamp, address submitter);\r\n\r\n    function storeHash(string memory dataHash) public {\r\n        records.push(Record({\r\n            dataHash: dataHash,\r\n            timestamp: block.timestamp,\r\n            submitter: msg.sender\r\n        }));\r\n\r\n        emit RecordStored(records.length - 1, dataHash, block.timestamp, msg.sender);\r\n    }\r\n\r\n    function getRecord(uint256 recordId) public view returns (string memory, uint256, address) {\r\n        Record memory record = records[recordId];\r\n        return (record.dataHash, record.timestamp, record.submitter);\r\n    }\r\n\r\n    function getRecordCount() public view returns (uint256) {\r\n        return records.length;\r\n    }\r\n}"
+      }
+    }
+  }
+}

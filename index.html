@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HashRegistry — Face ID &amp; Blockchain Verification</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0C10;
+    --bg-raised:#12151B;
+    --line:#22262F;
+    --text:#E8E6E1;
+    --text-dim:#8A8F9A;
+    --scan:#5AB8FF;
+    --chain:#3DDC97;
+    --flag:#FF6B4A;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;line-height:1.5;overflow-x:hidden;}
+  .grid-overlay{
+    position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:linear-gradient(var(--line) 1px, transparent 1px),linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size:64px 64px;opacity:.25;
+    mask-image:radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 90%);
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 32px;position:relative;z-index:1;}
+
+  nav{display:flex;justify-content:space-between;align-items:center;padding:22px 32px;max-width:1180px;margin:0 auto;position:relative;z-index:2;}
+  .brand{font-family:'Space Grotesk';font-weight:600;font-size:1.05rem;}
+  .brand span{color:var(--text-dim);font-weight:400;}
+  .status{display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono';font-size:.78rem;color:var(--chain);}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--chain);box-shadow:0 0 8px var(--chain);animation:pulse 2s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  .hero{padding:16px 0 56px;}
+  .hero-head{max-width:640px;margin-bottom:28px;}
+  h1{font-family:'Space Grotesk';font-weight:700;font-size:clamp(1.7rem,3.4vw,2.5rem);line-height:1.12;letter-spacing:-.01em;}
+  h1 em{font-style:normal;color:var(--scan);}
+  .lede{margin-top:14px;color:var(--text-dim);font-size:.98rem;max-width:56ch;}
+
+  .rail-bar{
+    display:flex;align-items:center;gap:0;background:var(--bg-raised);border:1px solid var(--line);
+    padding:14px 20px;margin-bottom:1px;overflow-x:auto;
+  }
+  .rail-step{display:flex;align-items:center;gap:10px;flex:1;min-width:110px;position:relative;}
+  .rail-step:not(:last-child)::after{
+    content:'';position:absolute;right:-4px;top:11px;width:calc(100% - 26px);height:1px;
+    background:repeating-linear-gradient(90deg, var(--line) 0 6px, transparent 6px 10px);
+  }
+  .rail-num{
+    width:22px;height:22px;flex-shrink:0;border-radius:50%;border:1.5px solid var(--scan);
+    display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono';font-size:.68rem;color:var(--scan);
+    background:var(--bg);position:relative;z-index:1;
+  }
+  .rail-step.done .rail-num{border-color:var(--chain);color:var(--chain);}
+  .rail-step.active .rail-num{background:var(--scan);color:var(--bg);}
+  .rail-label{font-family:'JetBrains Mono';font-size:.7rem;color:var(--text-dim);white-space:nowrap;}
+  .rail-step.done .rail-label, .rail-step.active .rail-label{color:var(--text);}
+
+  .console{
+    display:grid;grid-template-columns:0.85fr 1.15fr;gap:1px;background:var(--line);
+    border:1px solid var(--line);border-top:none;
+  }
+  .scan-panel{background:var(--bg-raised);position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:20px;}
+  .drop-zone{
+    width:100%;max-width:280px;height:240px;border:1.5px dashed var(--line);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+    cursor:pointer;transition:border-color .15s;position:relative;
+  }
+  .drop-zone.drag-over{border-color:var(--scan);}
+  .drop-zone.has-image{border-style:solid;border-color:var(--scan);}
+  .drop-zone img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+  .drop-icon{width:32px;height:32px;color:var(--text-dim);}
+  .drop-text{font-family:'JetBrains Mono';font-size:.74rem;color:var(--text-dim);text-align:center;}
+  .drop-actions{display:flex;gap:8px;margin-top:4px;position:relative;z-index:2;}
+  .btn-mini{
+    font-family:'JetBrains Mono';font-size:.68rem;background:var(--bg);border:1px solid var(--line);
+    color:var(--text-dim);padding:6px 10px;cursor:pointer;
+  }
+  .btn-mini:hover{color:var(--text);border-color:var(--scan);}
+  .scanline{
+    position:absolute;left:20px;right:20px;height:2px;z-index:3;display:none;
+    background:linear-gradient(90deg, transparent, var(--scan), transparent);box-shadow:0 0 14px var(--scan);
+  }
+  .scanline.active{display:block;animation:sweep 1.2s linear infinite;}
+  @keyframes sweep{0%{top:20px;}100%{top:calc(100% - 20px);}}
+
+  .log-panel{background:#0D1015;padding:20px 22px;font-family:'JetBrains Mono';font-size:.79rem;display:flex;flex-direction:column;}
+  .log-head{display:flex;justify-content:space-between;color:var(--text-dim);font-size:.7rem;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--line);}
+  .log-body{flex:1;overflow-y:auto;max-height:220px;}
+  .log-row{margin-bottom:9px;color:var(--text-dim);}
+  .log-row .prompt{color:var(--scan);margin-right:8px;}
+  .log-row.ok{color:var(--chain);}
+  .log-row.flag{color:var(--flag);}
+  .log-row .caret{display:inline-block;width:7px;height:14px;background:var(--scan);vertical-align:middle;animation:blink 1s steps(1) infinite;}
+  @keyframes blink{50%{opacity:0;}}
+  .result-card{margin-top:12px;padding-top:12px;border-top:1px solid var(--line);display:none;}
+  .result-card.show{display:block;}
+  .kv{margin-bottom:10px;}
+  .kv .k{color:var(--text-dim);font-size:.66rem;display:block;margin-bottom:3px;}
+  .kv .v{color:var(--text);font-size:.8rem;word-break:break-all;}
+  .kv .v.hash{color:var(--chain);}
+  #rUrl{color:var(--scan);cursor:pointer;text-decoration:underline;}
+  .badge{display:inline-flex;align-items:center;gap:6px;font-size:.68rem;padding:3px 9px;border:1px solid var(--chain);color:var(--chain);}
+  .demo-tag{font-size:.64rem;color:var(--flag);border:1px solid var(--flag);padding:3px 8px;display:inline-block;margin-top:12px;}
+
+  section{padding:56px 0;border-top:1px solid var(--line);}
+  .section-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:36px;flex-wrap:wrap;gap:12px;}
+  h2{font-family:'Space Grotesk';font-size:1.4rem;font-weight:600;}
+  .section-note{font-family:'JetBrains Mono';font-size:.75rem;color:var(--text-dim);}
+
+  .log-section{background:var(--bg-raised);border:1px solid var(--line);border-left:3px solid var(--flag);padding:22px 26px;font-family:'JetBrains Mono';font-size:.83rem;}
+  .log-line{padding:9px 0;border-bottom:1px solid var(--line);color:var(--text-dim);}
+  .log-line:last-child{border-bottom:none;}
+  .log-line .tag{color:var(--flag);margin-right:10px;}
+
+  footer{padding:36px 0 52px;border-top:1px solid var(--line);}
+  .chips{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:22px;}
+  .chip{font-family:'JetBrains Mono';font-size:.72rem;color:var(--text-dim);border:1px solid var(--line);padding:6px 12px;}
+  .foot-row{display:flex;justify-content:space-between;color:var(--text-dim);font-size:.8rem;flex-wrap:wrap;gap:8px;}
+
+  @media (max-width:860px){
+    .console{grid-template-columns:1fr;}
+    .rail-bar{flex-wrap:wrap;gap:16px;}
+    .rail-step::after{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="grid-overlay"></div>
+
+<nav>
+  <div class="brand">HashRegistry <span>/ HH Goa 2026</span></div>
+  <div class="status"><span class="dot"></span> LIVE ON POLYGON AMOY</div>
+</nav>
+
+<div class="wrap">
+
+  <section class="hero" style="border-top:none;">
+    <div class="hero-head">
+      <h1>Scan a face.<br><em>Find where it lives online.</em></h1>
+      <p class="lede">Drop a photo to see the pipeline move: detection, reverse image search, face verification, hashing, and a tamper-evident record on Polygon Amoy.</p>
+    </div>
+
+    <div class="rail-bar" id="railBar">
+      <div class="rail-step" data-step="0"><div class="rail-num">1</div><div class="rail-label">DETECT</div></div>
+      <div class="rail-step" data-step="1"><div class="rail-num">2</div><div class="rail-label">SEARCH</div></div>
+      <div class="rail-step" data-step="2"><div class="rail-num">3</div><div class="rail-label">VERIFY</div></div>
+      <div class="rail-step" data-step="3"><div class="rail-num">4</div><div class="rail-label">HASH</div></div>
+      <div class="rail-step" data-step="4"><div class="rail-num">5</div><div class="rail-label">ANCHOR</div></div>
+      <div class="rail-step" data-step="5"><div class="rail-num">6</div><div class="rail-label">RE-VERIFY</div></div>
+    </div>
+
+    <div class="console">
+      <div class="scan-panel">
+        <div class="drop-zone" id="dropZone">
+          <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+            <rect x="3" y="5" width="18" height="14" rx="1"/>
+            <circle cx="8.5" cy="10" r="1.5"/>
+            <path d="M21 15l-5-5-4 4-3-3-6 6"/>
+          </svg>
+          <div class="drop-text">DROP A PHOTO<br>or click to browse</div>
+          <div class="drop-actions">
+            <button class="btn-mini" id="browseBtn" type="button">BROWSE</button>
+            <button class="btn-mini" id="camBtn" type="button">CAMERA</button>
+          </div>
+          <input type="file" id="fileInput" accept="image/*" style="display:none;">
+        </div>
+        <div class="scanline" id="scanline"></div>
+      </div>
+
+      <div class="log-panel">
+        <div class="log-head"><span>PIPELINE.LOG</span><span id="logStatus">IDLE</span></div>
+        <div class="log-body" id="logBody">
+          <div class="log-row"><span class="prompt">&gt;</span>waiting for input<span class="caret"></span></div>
+        </div>
+        <div class="result-card" id="resultCard">
+          <div class="kv"><span class="k">identified as</span><span class="v" id="rName">—</span></div>
+          <div class="kv"><span class="k">matched url</span><br><span id="rUrl">—</span></div>
+          <div class="kv"><span class="k">sha-256 fingerprint</span><span class="v hash" id="rHash">—</span></div>
+          <div class="badge" id="rBadge">MATCH CONFIRMED</div>
+          <div class="demo-tag">DEMO PREVIEW — showing recorded output. Run <code>python main.py</code> for live results on this photo.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Known limits</h2><span class="section-note">stated plainly, not buried</span></div>
+    <div class="log-section">
+      <div class="log-line"><span class="tag">[LIMIT]</span> Only finds photos that are already indexed somewhere online — it cannot identify someone with no public photo footprint.</div>
+      <div class="log-line"><span class="tag">[LIMIT]</span> Search accuracy depends on Google's index; a genuine match can occasionally be missed or ranked low.</div>
+      <div class="log-line"><span class="tag">[LIMIT]</span> Verification confirms a candidate photo shows the same face — it does not confirm the person's real-world identity beyond what the source page claims.</div>
+      <div class="log-line"><span class="tag">[SCOPE]</span> Runs on Polygon Amoy, a public testnet — chosen for a zero-cost, fully reproducible demo. The same contract works unmodified on mainnet.</div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="chips">
+      <span class="chip">DeepFace</span><span class="chip">MTCNN</span><span class="chip">Google Cloud Vision</span>
+      <span class="chip">Solidity 0.8.34</span><span class="chip">Hardhat</span><span class="chip">web3.py</span><span class="chip">Polygon Amoy</span>
+    </div>
+    <div class="foot-row"><span>HH Goa 2026 — Shortlisting Task 3</span><span>Built by Yash Kanse</span></div>
+  </footer>
+
+</div>
+
+<script>
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const browseBtn = document.getElementById('browseBtn');
+  const camBtn = document.getElementById('camBtn');
+  const scanline = document.getElementById('scanline');
+  const logBody = document.getElementById('logBody');
+  const logStatus = document.getElementById('logStatus');
+  const resultCard = document.getElementById('resultCard');
+  const railSteps = document.querySelectorAll('.rail-step');
+
+  let currentFile = null;
+
+  browseBtn.addEventListener('click', (e) => { e.stopPropagation(); fileInput.click(); });
+  dropZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => { if (e.target.files[0]) handleImage(e.target.files[0]); });
+
+  ['dragenter','dragover'].forEach(evt => dropZone.addEventListener(evt, (e) => {
+    e.preventDefault(); dropZone.classList.add('drag-over');
+  }));
+  ['dragleave','drop'].forEach(evt => dropZone.addEventListener(evt, (e) => {
+    e.preventDefault(); dropZone.classList.remove('drag-over');
+  }));
+  dropZone.addEventListener('drop', (e) => {
+    if (e.dataTransfer.files[0]) handleImage(e.dataTransfer.files[0]);
+  });
+
+  camBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      await video.play();
+      await new Promise(r => setTimeout(r, 400));
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      stream.getTracks().forEach(t => t.stop());
+      canvas.toBlob(blob => {
+        const file = new File([blob], "capture.jpg", { type: "image/jpeg" });
+        handleImage(file);
+      });
+    } catch (err) {
+      addLog('camera access denied or unavailable', 'flag');
+    }
+  });
+
+  function handleImage(file) {
+    currentFile = file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      dropZone.classList.add('has-image');
+      dropZone.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = e.target.result;
+      dropZone.appendChild(img);
+      runRealPipeline(file);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function addLog(text, cls) {
+    const row = document.createElement('div');
+    row.className = 'log-row' + (cls ? ' ' + cls : '');
+    row.innerHTML = '<span class="prompt">&gt;</span>' + text;
+    logBody.appendChild(row);
+    logBody.scrollTop = logBody.scrollHeight;
+  }
+
+  function setRailStep(index) {
+    railSteps.forEach((el, i) => {
+      el.classList.remove('active');
+      if (i < index) el.classList.add('done');
+      if (i === index) el.classList.add('active');
+    });
+  }
+
+  async function runRealPipeline(file) {
+    logBody.innerHTML = '';
+    resultCard.classList.remove('show');
+    logStatus.textContent = 'RUNNING';
+    scanline.classList.add('active');
+    railSteps.forEach(el => el.classList.remove('done', 'active'));
+
+    const pacingMessages = [
+      'detecting face (MTCNN)...',
+      'encoding face (DeepFace / Facenet)...',
+      'querying Google Vision Web Detection...',
+      'checking candidates against original face...',
+      'fingerprinting metadata (SHA-256)...',
+      'writing hash to Polygon Amoy...',
+      'reading record back from contract...',
+    ];
+
+    addLog('this can take 20\u201340 seconds \u2014 real face detection, search, and a real blockchain write are happening.');
+
+    let step = 0;
+    const pacer = setInterval(() => {
+      if (step < pacingMessages.length) {
+        setRailStep(step);
+        addLog(pacingMessages[step]);
+        step++;
+      }
+    }, 3500);
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const response = await fetch('http://localhost:5000/run-pipeline', {
+        method: 'POST',
+        body: formData,
+      });
+
+      clearInterval(pacer);
+      const data = await response.json();
+
+      if (!response.ok) {
+        scanline.classList.remove('active');
+        logStatus.textContent = 'ERROR';
+        addLog(data.error || 'pipeline failed', 'flag');
+        return;
+      }
+
+      setRailStep(6);
+      scanline.classList.remove('active');
+      logStatus.textContent = 'COMPLETE';
+      addLog(`identified: ${data.identified_entity} (confidence ${data.confidence})`, 'ok');
+      addLog(`match status: ${data.match_status}`, data.match_status === 'VERIFIED' ? 'ok' : 'flag');
+      addLog('on-chain verification: ' + (data.on_chain_match ? 'PASSED' : 'FAILED'), data.on_chain_match ? 'ok' : 'flag');
+
+      document.getElementById('rName').textContent = data.identified_entity || 'Unknown';
+
+      const urlEl = document.getElementById('rUrl');
+      urlEl.textContent = data.matched_url;
+      urlEl.onclick = () => {
+        if (data.matched_url && data.matched_url.indexOf('http') === 0) {
+          window.open(data.matched_url, '_blank', 'noopener');
+        }
+      };
+
+      document.getElementById('rHash').textContent = data.hash;
+
+      const badge = document.getElementById('rBadge');
+      badge.textContent = data.match_status === 'VERIFIED' ? 'MATCH CONFIRMED' : 'UNVERIFIED MATCH';
+      badge.style.borderColor = data.match_status === 'VERIFIED' ? 'var(--chain)' : 'var(--flag)';
+      badge.style.color = data.match_status === 'VERIFIED' ? 'var(--chain)' : 'var(--flag)';
+
+      const demoTag = document.querySelector('.demo-tag');
+      demoTag.textContent = 'LIVE RESULT — from a real run of the pipeline, just now.';
+      demoTag.style.color = 'var(--chain)';
+      demoTag.style.borderColor = 'var(--chain)';
+
+      resultCard.classList.add('show');
+
+    } catch (err) {
+      clearInterval(pacer);
+      scanline.classList.remove('active');
+      logStatus.textContent = 'ERROR';
+      addLog('could not reach the pipeline server. Make sure "python app.py" is running.', 'flag');
+    }
+  }
+</script>
+
+</body>
+</html>
